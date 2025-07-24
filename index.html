@@ -1,1025 +1,1106 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mahjong Hand Demo</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-      background: #1b1b1b;
-    }
-    #palette {
-      width: 220px;
-      background: #222;
-      color: white;
-      overflow-y: auto;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-      display: flex;
-      flex-direction: column;
-    }
-    #palette img {
-      width: 40px;
-      height: 64px;
-      cursor: pointer;
-      margin: 2px;
-    }
-    #tools {
-      padding: 10px;
-      border-bottom: 1px solid #444;
-    }
-    .tool-button {
-      display: block;
-      width: 100%;
-      padding: 8px;
-      margin: 5px 0;
-      background: #333;
-      color: white;
-      border: 1px solid #555;
-      cursor: pointer;
-      border-radius: 3px;
-      text-align: left;
-    }
-    .tool-button.active {
-      background: #4CAF50;
-      border-color: #4CAF50;
-    }
-    .tool-button:hover:not(.active) {
-      background: #555;
-    }
-    #text-options, #rect-options /* MODIFIED: Added rect-options */ {
-      padding: 10px;
-      border-top: 1px solid #444;
-      margin-top: 5px;
-    }
-    #text-options label, #rect-options label /* MODIFIED: Added rect-options */ {
-        display: inline-block;
-        margin: 0 5px 5px 0;
-        font-size: 0.9em;
-        vertical-align: middle;
-    }
-    #text-options .option-row, #rect-options .option-row /* MODIFIED: Added rect-options */ {
-        display: flex;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-    #text-options .option-row label, #rect-options .option-row label /* MODIFIED: Added rect-options */ {
-        flex-basis: 50px;
-    }
-    #text-options input[type="color"], #rect-options input[type="color"] /* MODIFIED: Added rect-options */ {
-        padding: 0;
-        border: 1px solid #555;
-        vertical-align: middle;
-        width: 30px;
-        height: 30px;
-        background: none;
-        cursor: pointer;
-    }
-    #text-options input[type="number"] {
-        width: 60px;
-        padding: 5px;
-        background: #333;
-        color: white;
-        border: 1px solid #555;
-        border-radius: 3px;
-    }
-    #tile-palette {
-        padding: 5px;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    #board {
-      flex: 1;
-      position: relative;
-      background: #55aaff;
-    }
-    .tile {
-      position: absolute;
-      width: 80px;
-      height: 129px;
-      cursor: grab;
-      user-select: none;
-      border: 2px solid transparent;
-      transition: border-color 0.1s;
-      z-index: 10;
-      box-sizing: border-box;
-    }
-    .tile:active {
-        cursor: grabbing;
-    }
-    .tile.selected {
-      border-color: #4CAF50;
-      box-shadow: 0 0 10px #4CAF50;
-    }
-    .selection-box {
-      position: absolute;
-      border: 1px dashed #4CAF50;
-      background: rgba(76, 175, 80, 0.1);
-      pointer-events: none;
-      display: none;
-      z-index: 100;
-    }
-    .arrow {
-      position: absolute;
-      pointer-events: none;
-      z-index: 5;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      cursor: pointer;
-    }
-    .arrow .hitbox {
-        pointer-events: stroke;
-    }
-    .arrow.selected .visible-path {
-      filter: drop-shadow(0 0 3px #4CAF50);
-    }
-    .text-element {
-      position: absolute;
-      color: white;
-      font-size: 16px;
-      font-family: Arial, sans-serif;
-      cursor: grab;
-      min-width: 20px;
-      min-height: 20px;
-      padding: 5px;
-      border: 2px solid transparent;
-      background: transparent;
-      z-index: 10;
-      box-sizing: border-box;
-      border-radius: 3px;
-    }
-    .text-element:active {
-        cursor: grabbing;
-    }
-    .text-element.selected {
-      border-color: #4CAF50;
-      background: rgba(76, 175, 80, 0.1);
-    }
-    .text-element.editing {
-      cursor: text;
-      background: rgba(255, 255, 255, 0.1);
-      border-color: #fff;
-    }
-    .arrow-preview {
-      position: absolute;
-      pointer-events: none;
-      z-index: 99;
-      display: none;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-    }
-    #save-load-controls {
-        padding: 10px;
-        border-top: 1px solid #444;
-        margin-top: auto; /* Pushes to the bottom */
-    }
-    #save-load-controls input,
-    #save-load-controls select,
-    #save-load-controls button {
-        display: block;
-        width: 100%;
-        padding: 8px;
-        margin: 5px 0;
-        background: #333;
-        color: white;
-        border: 1px solid #555;
-        border-radius: 3px;
-        box-sizing: border-box;
-    }
-    #save-load-controls button {
-        cursor: pointer;
-    }
-    #save-load-controls button:hover {
-        background: #555;
-    }
-    #save-load-controls label {
-        display: block;
-        margin-top: 10px;
-        font-size: 0.9em;
-        color: #aaa;
-    }
-    #update-state-button {
-      display: none;
-    }
-    /* ADDED: Styles for the hiding rectangle and its resize handles */
-    .hide-rect {
-      position: absolute;
-      cursor: grab;
-      border: 2px solid transparent;
-      z-index: 50; /* Above tiles (10) & text (10), below selection box (100) */
-      box-sizing: border-box;
-    }
-    .hide-rect:active {
-      cursor: grabbing;
-    }
-    .hide-rect.selected {
-      border-color: #4CAF50;
-    }
-    .resize-handle {
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      background: white;
-      border: 1px solid #333;
-      box-sizing: border-box;
-      display: none; /* Hidden by default */
-      z-index: 51; /* Above its own rect */
-    }
-    .hide-rect.selected .resize-handle {
-      display: block; /* Show on selection */
-    }
-    .resize-handle.nw { top: -6px; left: -6px; cursor: nwse-resize; }
-    .resize-handle.ne { top: -6px; right: -6px; cursor: nesw-resize; }
-    .resize-handle.sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
-    .resize-handle.se { bottom: -6px; right: -6px; cursor: nwse-resize; }
-    .resize-handle.n { top: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
-    .resize-handle.s { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
-    .resize-handle.w { top: 50%; left: -6px; transform: translateY(-50%); cursor: ew-resize; }
-    .resize-handle.e { top: 50%; right: -6px; transform: translateY(-50%); cursor: ew-resize; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mahjong Hand Demo</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background: #1b1b1b;
+        }
+
+        #palette {
+            width: 220px;
+            background: #222;
+            color: white;
+            overflow-y: auto;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+            #palette img {
+                width: 40px;
+                height: 64px;
+                cursor: pointer;
+                margin: 2px;
+            }
+
+        #tools {
+            padding: 10px;
+            border-bottom: 1px solid #444;
+        }
+
+        .tool-button {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            cursor: pointer;
+            border-radius: 3px;
+            text-align: left;
+        }
+
+            .tool-button.active {
+                background: #4CAF50;
+                border-color: #4CAF50;
+            }
+
+            .tool-button:hover:not(.active) {
+                background: #555;
+            }
+
+        #text-options, #rect-options /* MODIFIED: Added rect-options */ {
+            padding: 10px;
+            border-top: 1px solid #444;
+            margin-top: 5px;
+        }
+
+            #text-options label, #rect-options label /* MODIFIED: Added rect-options */ {
+                display: inline-block;
+                margin: 0 5px 5px 0;
+                font-size: 0.9em;
+                vertical-align: middle;
+            }
+
+            #text-options .option-row, #rect-options .option-row /* MODIFIED: Added rect-options */ {
+                display: flex;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+
+                #text-options .option-row label, #rect-options .option-row label /* MODIFIED: Added rect-options */ {
+                    flex-basis: 50px;
+                }
+
+            #text-options input[type="color"], #rect-options input[type="color"] /* MODIFIED: Added rect-options */ {
+                padding: 0;
+                border: 1px solid #555;
+                vertical-align: middle;
+                width: 30px;
+                height: 30px;
+                background: none;
+                cursor: pointer;
+            }
+
+            #text-options input[type="number"] {
+                width: 60px;
+                padding: 5px;
+                background: #333;
+                color: white;
+                border: 1px solid #555;
+                border-radius: 3px;
+            }
+
+        #tile-palette {
+            padding: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        #board {
+            flex: 1;
+            position: relative;
+            background: #55aaff;
+        }
+
+        .tile {
+            position: absolute;
+            width: 80px;
+            height: 129px;
+            cursor: grab;
+            user-select: none;
+            border: 2px solid transparent;
+            transition: border-color 0.1s;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+
+            .tile:active {
+                cursor: grabbing;
+            }
+
+            .tile.selected {
+                border-color: #4CAF50;
+                box-shadow: 0 0 10px #4CAF50;
+            }
+
+        .selection-box {
+            position: absolute;
+            border: 1px dashed #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+        }
+
+        .arrow {
+            position: absolute;
+            pointer-events: none;
+            z-index: 5;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+            .arrow .hitbox {
+                pointer-events: stroke;
+            }
+
+            .arrow.selected .visible-path {
+                filter: drop-shadow(0 0 3px #4CAF50);
+            }
+
+        .text-element {
+            position: absolute;
+            color: white;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+            cursor: grab;
+            min-width: 20px;
+            min-height: 20px;
+            padding: 5px;
+            border: 2px solid transparent;
+            background: transparent;
+            z-index: 10;
+            box-sizing: border-box;
+            border-radius: 3px;
+        }
+
+            .text-element:active {
+                cursor: grabbing;
+            }
+
+            .text-element.selected {
+                border-color: #4CAF50;
+                background: rgba(76, 175, 80, 0.1);
+            }
+
+            .text-element.editing {
+                cursor: text;
+                background: rgba(255, 255, 255, 0.1);
+                border-color: #fff;
+            }
+
+        .arrow-preview {
+            position: absolute;
+            pointer-events: none;
+            z-index: 99;
+            display: none;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #save-load-controls {
+            padding: 10px;
+            border-top: 1px solid #444;
+            margin-top: auto; /* Pushes to the bottom */
+        }
+
+            #save-load-controls input,
+            #save-load-controls select,
+            #save-load-controls button {
+                display: block;
+                width: 100%;
+                padding: 8px;
+                margin: 5px 0;
+                background: #333;
+                color: white;
+                border: 1px solid #555;
+                border-radius: 3px;
+                box-sizing: border-box;
+            }
+
+            #save-load-controls button {
+                cursor: pointer;
+            }
+
+                #save-load-controls button:hover {
+                    background: #555;
+                }
+
+            #save-load-controls label {
+                display: block;
+                margin-top: 10px;
+                font-size: 0.9em;
+                color: #aaa;
+            }
+
+        #update-state-button {
+            display: none;
+        }
+        /* ADDED: Styles for the hiding rectangle and its resize handles */
+        .hide-rect {
+            position: absolute;
+            cursor: grab;
+            border: 2px solid transparent;
+            z-index: 50; /* Above tiles (10) & text (10), below selection box (100) */
+            box-sizing: border-box;
+        }
+
+            .hide-rect:active {
+                cursor: grabbing;
+            }
+
+            .hide-rect.selected {
+                border-color: #4CAF50;
+            }
+
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: white;
+            border: 1px solid #333;
+            box-sizing: border-box;
+            display: none; /* Hidden by default */
+            z-index: 51; /* Above its own rect */
+        }
+
+        .hide-rect.selected .resize-handle {
+            display: block; /* Show on selection */
+        }
+
+        .resize-handle.nw {
+            top: -6px;
+            left: -6px;
+            cursor: nwse-resize;
+        }
+
+        .resize-handle.ne {
+            top: -6px;
+            right: -6px;
+            cursor: nesw-resize;
+        }
+
+        .resize-handle.sw {
+            bottom: -6px;
+            left: -6px;
+            cursor: nesw-resize;
+        }
+
+        .resize-handle.se {
+            bottom: -6px;
+            right: -6px;
+            cursor: nwse-resize;
+        }
+
+        .resize-handle.n {
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+
+        .resize-handle.s {
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+
+        .resize-handle.w {
+            top: 50%;
+            left: -6px;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+
+        .resize-handle.e {
+            top: 50%;
+            right: -6px;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+    </style>
 </head>
 <body>
-  <div id="palette">
-    <div id="tools">
-      <button class="tool-button active" id="select-tool">Select</button>
-      <button class="tool-button" id="arrow-tool">Arrow</button>
-      <button class="tool-button" id="text-tool">Text</button>
-       <div id="text-options" style="display: none;">
-        <div class="option-row">
-            <label for="text-color">Color:</label>
-            <input type="color" id="text-color" value="#FFFFFF">
+    <div id="palette">
+        <div id="tools">
+            <button class="tool-button active" id="select-tool">Select</button>
+            <button class="tool-button" id="arrow-tool">Arrow</button>
+            <button class="tool-button" id="text-tool">Text</button>
+            <div id="text-options" style="display: none;">
+                <div class="option-row">
+                    <label for="text-color">Color:</label>
+                    <input type="color" id="text-color" value="#FFFFFF">
+                </div>
+                <div class="option-row">
+                    <label for="font-size">Size:</label>
+                    <input type="number" id="font-size" value="16" min="8" max="100">
+                </div>
+            </div>
+            <!-- ADDED: Rectangle tool button and its options panel -->
+            <button class="tool-button" id="rect-tool">Rectangle</button>
+            <div id="rect-options" style="display: none;">
+                <div class="option-row">
+                    <label for="rect-color">Color:</label>
+                    <input type="color" id="rect-color" value="#55aaff">
+                </div>
+            </div>
+            <button class="tool-button" id="generate-hand-button">Hand</button>
+            <button class="tool-button" id="generate-tile-button">Draw</button>
+            <button class="tool-button" id="clear-board-button">Clear</button>
         </div>
-        <div class="option-row">
-            <label for="font-size">Size:</label>
-            <input type="number" id="font-size" value="16" min="8" max="100">
+        <div id="tile-palette"></div>
+        <div id="save-load-controls">
+            <label for="save-name-input">Save Current State</label>
+            <input type="text" id="save-name-input" placeholder="Enter name...">
+            <button id="save-button">Save</button>
+
+            <label for="load-state-select">Load Saved State</label>
+            <select id="load-state-select">
+                <option value="">-- Select a state --</option>
+            </select>
+            <button id="load-button">Load</button>
+            <button id="update-state-button">Update Selected</button>
+            <button id="delete-state-button">Delete Selected State</button>
         </div>
-      </div>
-      <!-- ADDED: Rectangle tool button and its options panel -->
-      <button class="tool-button" id="rect-tool">Rectangle</button>
-      <div id="rect-options" style="display: none;">
-          <div class="option-row">
-              <label for="rect-color">Color:</label>
-              <input type="color" id="rect-color" value="#55aaff">
-          </div>
-      </div>
-      <button class="tool-button" id="generate-hand-button">Hand</button>
-      <button class="tool-button" id="generate-tile-button">Draw</button>
-      <button class="tool-button" id="clear-board-button">Clear</button>
     </div>
-    <div id="tile-palette"></div>
-     <div id="save-load-controls">
-      <label for="save-name-input">Save Current State</label>
-      <input type="text" id="save-name-input" placeholder="Enter name...">
-      <button id="save-button">Save</button>
-      
-      <label for="load-state-select">Load Saved State</label>
-      <select id="load-state-select">
-        <option value="">-- Select a state --</option>
-      </select>
-      <button id="load-button">Load</button>
-      <button id="update-state-button">Update Selected</button>
-      <button id="delete-state-button">Delete Selected State</button>
+    <div id="board">
+        <div id="selection-box" class="selection-box"></div>
+        <svg id="arrow-preview" class="arrow-preview">
+            <defs>
+                <marker id="preview-arrowhead" markerWidth="10" markerHeight="7"
+                        refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#4CAF50" />
+                </marker>
+            </defs>
+            <path stroke="#4CAF50" stroke-width="2" fill="none" marker-end="url(#preview-arrowhead)" />
+        </svg>
     </div>
-  </div>
-  <div id="board">
-    <div id="selection-box" class="selection-box"></div>
-    <svg id="arrow-preview" class="arrow-preview">
-      <defs>
-        <marker id="preview-arrowhead" markerWidth="10" markerHeight="7" 
-                refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0, 10 3.5, 0 7" fill="#4CAF50" />
-        </marker>
-      </defs>
-      <path stroke="#4CAF50" stroke-width="2" fill="none" marker-end="url(#preview-arrowhead)" />
-    </svg>
-  </div>
-     <script>
-    const palette = document.getElementById('palette');
-    const tilePalette = document.getElementById('tile-palette');
-    const board = document.getElementById('board');
-    const selectionBox = document.getElementById('selection-box');
-    const arrowPreview = document.getElementById('arrow-preview');
-    const arrowPreviewPath = arrowPreview.querySelector('path');
-    
-    const selectTool = document.getElementById('select-tool');
-    const arrowTool = document.getElementById('arrow-tool');
-    const textTool = document.getElementById('text-tool');
-    const rectTool = document.getElementById('rect-tool'); // ADDED
-    let currentTool = 'select';
-    
-    const textOptionsPanel = document.getElementById('text-options');
-    const textColorInput = document.getElementById('text-color');
-    const fontSizeInput = document.getElementById('font-size');
+    <script>
+        const palette = document.getElementById('palette');
+        const tilePalette = document.getElementById('tile-palette');
+        const board = document.getElementById('board');
+        const selectionBox = document.getElementById('selection-box');
+        const arrowPreview = document.getElementById('arrow-preview');
+        const arrowPreviewPath = arrowPreview.querySelector('path');
 
-    // ADDED: Rectangle options elements
-    const rectOptionsPanel = document.getElementById('rect-options');
-    const rectColorInput = document.getElementById('rect-color');
+        const selectTool = document.getElementById('select-tool');
+        const arrowTool = document.getElementById('arrow-tool');
+        const textTool = document.getElementById('text-tool');
+        const rectTool = document.getElementById('rect-tool'); // ADDED
+        let currentTool = 'select';
 
-    const saveNameInput = document.getElementById('save-name-input');
-    const saveButton = document.getElementById('save-button');
-    const loadStateSelect = document.getElementById('load-state-select');
-    const loadButton = document.getElementById('load-button');
-    const deleteStateButton = document.getElementById('delete-state-button');
-    const updateStateButton = document.getElementById('update-state-button');
+        const textOptionsPanel = document.getElementById('text-options');
+        const textColorInput = document.getElementById('text-color');
+        const fontSizeInput = document.getElementById('font-size');
 
-    const tileImages = Array.from({ length: 38 }, (_, i) => `tile_${String(i).padStart(2, '0')}.png`);
-    const drawableTiles = tileImages.slice(0, 37);
-    let tileCounts = {};
-    tileImages.forEach(tile => tileCounts[tile] = 0);
+        // ADDED: Rectangle options elements
+        const rectOptionsPanel = document.getElementById('rect-options');
+        const rectColorInput = document.getElementById('rect-color');
 
-    let selections = new Set();
-    let isSelecting = false;
-    let isDragging = false;
-    let isDrawingArrow = false;
-    let arrowPoints = [];
-    let selectionStart = { x: 0, y: 0 };
-    let dragOffsets = new Map();
-    let nextSpawnX = 50;
-    let nextSpawnY = 50;
-    const GRID_SIZE = 10;
-    const TILE_WIDTH = 80;
-    const TILE_HEIGHT = 129;
-    const SVG_NS = 'http://www.w3.org/2000/svg';
+        const saveNameInput = document.getElementById('save-name-input');
+        const saveButton = document.getElementById('save-button');
+        const loadStateSelect = document.getElementById('load-state-select');
+        const loadButton = document.getElementById('load-button');
+        const deleteStateButton = document.getElementById('delete-state-button');
+        const updateStateButton = document.getElementById('update-state-button');
 
-    // MODIFIED: Added Tile Count Limits Configuration
-    const TILE_LIMITS = {
-      // Aka 5s (Red Fives) - 1 copy each
-      'tile_05.png': 1,
-      'tile_15.png': 1,
-      'tile_25.png': 1,
-      // Normal 5s - 3 copies each
-      'tile_04.png': 3,
-      'tile_14.png': 3,
-      'tile_24.png': 3,
-    };
-    const DEFAULT_TILE_LIMIT = 4;
-    function getTileLimit(tileName) {
-      return TILE_LIMITS[tileName] || DEFAULT_TILE_LIMIT;
-    }
+        const tileImages = Array.from({ length: 38 }, (_, i) => `tile_${String(i).padStart(2, '0')}.png`);
+        const drawableTiles = tileImages.slice(0, 37);
+        let tileCounts = {};
+        tileImages.forEach(tile => tileCounts[tile] = 0);
 
-    // --- UTILITY FUNCTIONS ---
-    function resetTileCounts() { tileImages.forEach(tile => tileCounts[tile] = 0); }
-    function recalculateTileCounts() {
-      resetTileCounts();
-      document.querySelectorAll('.tile').forEach(tile => {
-        const src = tile.src.split('/').pop();
-        if (tileCounts[src] !== undefined) tileCounts[src]++;
-      });
-    }
-    function snapToGrid(value) { return Math.round(value / GRID_SIZE) * GRID_SIZE; }
-    function clearAllSelections() {
-        selections.forEach(item => item.classList.remove('selected'));
-        selections.clear();
-        updateToolOptionPanels(); // MODIFIED
-    }
-    function deleteSelectedItems() {
-        selections.forEach(item => { if (board.contains(item)) board.removeChild(item); });
-        clearAllSelections();
-    }
-    function rgbToHex(rgb) {
-        if (!rgb || !rgb.startsWith('rgb')) return rgb;
-        let sep = rgb.indexOf(",") > -1 ? "," : " ";
-        rgb = rgb.substr(4).split(")")[0].split(sep);
-        let r = (+rgb[0]).toString(16), g = (+rgb[1]).toString(16), b = (+rgb[2]).toString(16);
-        if (r.length == 1) r = "0" + r;
-        if (g.length == 1) g = "0" + g;
-        if (b.length == 1) b = "0" + b;
-        return "#" + r + g + b;
-    }
+        let selections = new Set();
+        let isSelecting = false;
+        let isDragging = false;
+        let isDrawingArrow = false;
+        let arrowPoints = [];
+        let selectionStart = { x: 0, y: 0 };
+        let dragOffsets = new Map();
+        let nextSpawnX = 50;
+        let nextSpawnY = 50;
+        const GRID_SIZE = 10;
+        const TILE_WIDTH = 80;
+        const TILE_HEIGHT = 129;
+        const SVG_NS = 'http://www.w3.org/2000/svg';
+        const TILE_PATH_PREFIX = 'docs/assets/'; // MODIFIED: Added path prefix
 
-    // --- TOOL MANAGEMENT ---
-    // ADDED: Central function to update all tool option panels
-    function updateToolOptionPanels() {
-        updateTextOptions();
-        updateRectOptions();
-    }
-    
-    function setActiveTool(toolName) {
-        document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
-        document.getElementById(`${toolName}-tool`).classList.add('active');
-        currentTool = toolName;
-        clearAllSelections();
-        board.style.cursor = { text: 'text', arrow: 'crosshair', select: 'default', rect: 'crosshair' }[toolName]; // MODIFIED
-        updateToolOptionPanels(); // MODIFIED
-    }
-    // MODIFIED: Added rectTool to the list
-    [selectTool, arrowTool, textTool, rectTool].forEach(button => {
-        button.addEventListener('click', () => setActiveTool(button.id.replace('-tool', '')));
-    });
-
-    // --- TILE MANAGEMENT ---
-    function findNextSpawnPosition() { /* ... unchanged ... */ return {x:0, y:0};}
-    function createDraggableTile({ src, left, top }) { /* ... unchanged ... */ }
-    
-    // --- ARROW MANAGEMENT ---
-    function pointsToPath(points) { /* ... unchanged ... */ return '';}
-    function createArrow({ points }) { /* ... unchanged ... */ }
-
-    // --- TEXT MANAGEMENT ---
-    function createTextElement({ text, left, top, color, fontSize }, event) { /* ... unchanged ... */ }
-    function updateTextOptions() {
-        const selectedTextElements = [...selections].filter(el => el.classList.contains('text-element'));
-        const isTextToolActive = currentTool === 'text';
-        textOptionsPanel.style.display = (isTextToolActive || selectedTextElements.length > 0) ? 'block' : 'none';
-        if (selectedTextElements.length > 0) {
-            const lastSelectedText = selectedTextElements[selectedTextElements.length - 1];
-            textColorInput.value = rgbToHex(getComputedStyle(lastSelectedText).color);
-            fontSizeInput.value = parseInt(lastSelectedText.style.fontSize, 10) || 16;
-        }
-    }
-    function applyStyleToSelectedText() {
-        const color = textColorInput.value;
-        const size = fontSizeInput.value + 'px';
-        selections.forEach(el => {
-            if (el.classList.contains('text-element')) {
-                el.style.color = color;
-                el.style.fontSize = size;
-            }
-        });
-    }
-    textColorInput.addEventListener('input', applyStyleToSelectedText);
-    fontSizeInput.addEventListener('input', applyStyleToSelectedText);
-
-    // --- ADDED: RECTANGLE MANAGEMENT ---
-    function createHideRect({ left, top, width, height, color }) {
-        const rect = document.createElement('div');
-        rect.className = 'hide-rect';
-        rect.style.left = left;
-        rect.style.top = top;
-        rect.style.width = width;
-        rect.style.height = height;
-        rect.style.backgroundColor = color || rectColorInput.value;
-
-        // Create and append resize handles
-        const directions = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
-        directions.forEach(dir => {
-            const handle = document.createElement('div');
-            handle.className = `resize-handle ${dir}`;
-            handle.dataset.direction = dir;
-            handle.addEventListener('mousedown', initResize);
-            rect.appendChild(handle);
-        });
-
-        board.appendChild(rect);
-        addInteractionListeners(rect);
-        return rect;
-    }
-
-    function initResize(e) {
-        e.preventDefault();
-        e.stopPropagation(); // Prevent the rect itself from being dragged
-
-        const handle = e.target;
-        const rect = handle.parentElement;
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const startWidth = rect.offsetWidth;
-        const startHeight = rect.offsetHeight;
-        const startLeft = rect.offsetLeft;
-        const startTop = rect.offsetTop;
-
-        function doResize(moveE) {
-            const dx = moveE.clientX - startX;
-            const dy = moveE.clientY - startY;
-
-            let newLeft = startLeft, newTop = startTop, newWidth = startWidth, newHeight = startHeight;
-            const direction = handle.dataset.direction;
-
-            if (direction.includes('e')) newWidth = startWidth + dx;
-            if (direction.includes('w')) {
-                newWidth = startWidth - dx;
-                newLeft = startLeft + dx;
-            }
-            if (direction.includes('s')) newHeight = startHeight + dy;
-            if (direction.includes('n')) {
-                newHeight = startHeight - dy;
-                newTop = startTop + dy;
-            }
-            
-            if (newWidth > 10) {
-                rect.style.width = newWidth + 'px';
-                rect.style.left = newLeft + 'px';
-            }
-            if (newHeight > 10) {
-                rect.style.height = newHeight + 'px';
-                rect.style.top = newTop + 'px';
-            }
+        // MODIFIED: Added Tile Count Limits Configuration
+        const TILE_LIMITS = {
+            // Aka 5s (Red Fives) - 1 copy each
+            'tile_05.png': 1,
+            'tile_15.png': 1,
+            'tile_25.png': 1,
+            // Normal 5s - 3 copies each
+            'tile_04.png': 3,
+            'tile_14.png': 3,
+            'tile_24.png': 3,
+        };
+        const DEFAULT_TILE_LIMIT = 4;
+        function getTileLimit(tileName) {
+            return TILE_LIMITS[tileName] || DEFAULT_TILE_LIMIT;
         }
 
-        function stopResize() {
-            document.removeEventListener('mousemove', doResize);
-            document.removeEventListener('mouseup', stopResize);
+        // --- UTILITY FUNCTIONS ---
+        function resetTileCounts() { tileImages.forEach(tile => tileCounts[tile] = 0); }
+        function recalculateTileCounts() {
+            resetTileCounts();
+            document.querySelectorAll('.tile').forEach(tile => {
+                const src = tile.src.split('/').pop();
+                if (tileCounts[src] !== undefined) tileCounts[src]++;
+            });
         }
-
-        document.addEventListener('mousemove', doResize);
-        document.addEventListener('mouseup', stopResize, { once: true });
-    }
-    
-    function updateRectOptions() {
-        const selectedRects = [...selections].filter(el => el.classList.contains('hide-rect'));
-        const isRectToolActive = currentTool === 'rect';
-        rectOptionsPanel.style.display = (isRectToolActive || selectedRects.length > 0) ? 'block' : 'none';
-        
-        if (selectedRects.length > 0) {
-            const lastSelectedRect = selectedRects[selectedRects.length - 1];
-            rectColorInput.value = rgbToHex(lastSelectedRect.style.backgroundColor);
+        function snapToGrid(value) { return Math.round(value / GRID_SIZE) * GRID_SIZE; }
+        function clearAllSelections() {
+            selections.forEach(item => item.classList.remove('selected'));
+            selections.clear();
+            updateToolOptionPanels(); // MODIFIED
         }
-    }
-
-    function applyColorToSelectedRects() {
-        const color = rectColorInput.value;
-        selections.forEach(el => {
-            if (el.classList.contains('hide-rect')) {
-                el.style.backgroundColor = color;
-            }
-        });
-    }
-    rectColorInput.addEventListener('input', applyColorToSelectedRects);
-
-
-    // --- GENERIC INTERACTION HANDLING ---
-    function addInteractionListeners(element) {
-        element.addEventListener('mousedown', handleMouseDown);
-        element.addEventListener('click', handleClick);
-        element.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            if (!selections.has(element)) { clearAllSelections(); selections.add(element); element.classList.add('selected'); }
-            deleteSelectedItems();
-        });
-    }
-    function handleClick(e) {
-        e.stopPropagation();
-        if (currentTool !== 'select' || e.currentTarget.isContentEditable) return;
-        const element = e.currentTarget;
-        if (e.ctrlKey || e.metaKey) {
-            if (selections.has(element)) { selections.delete(element); element.classList.remove('selected'); }
-            else { selections.add(element); element.classList.add('selected'); }
-        } else {
-            if (!isDragging) { clearAllSelections(); selections.add(element); element.classList.add('selected'); }
-        }
-        updateToolOptionPanels(); // MODIFIED
-    }
-    function handleMouseDown(e) {
-        // ADDED: Don't drag if a resize handle was clicked
-        if (e.target.classList.contains('resize-handle')) return;
-        if (e.button !== 0 || currentTool !== 'select' || e.target.isContentEditable) return;
-        e.stopPropagation();
-        const element = e.currentTarget;
-        if (!selections.has(element) && !e.ctrlKey && !e.metaKey) {
+        function deleteSelectedItems() {
+            selections.forEach(item => { if (board.contains(item)) board.removeChild(item); });
             clearAllSelections();
-            selections.add(element);
-            element.classList.add('selected');
         }
-        isDragging = true;
-        dragOffsets.clear();
-        const boardRect = board.getBoundingClientRect();
-        selections.forEach(sel => {
-            if (sel.classList.contains('arrow')) {
-                dragOffsets.set(sel, { type: 'arrow', initialPoints: JSON.parse(JSON.stringify(sel.arrowData.points)), offsetX: e.clientX, offsetY: e.clientY });
-            } else {
-                const elemRect = sel.getBoundingClientRect();
-                dragOffsets.set(sel, { type: 'element', offsetX: e.clientX - elemRect.left, offsetY: e.clientY - elemRect.top });
-            }
+        function rgbToHex(rgb) {
+            if (!rgb || !rgb.startsWith('rgb')) return rgb;
+            let sep = rgb.indexOf(",") > -1 ? "," : " ";
+            rgb = rgb.substr(4).split(")")[0].split(sep);
+            let r = (+rgb[0]).toString(16), g = (+rgb[1]).toString(16), b = (+rgb[2]).toString(16);
+            if (r.length == 1) r = "0" + r;
+            if (g.length == 1) g = "0" + g;
+            if (b.length == 1) b = "0" + b;
+            return "#" + r + g + b;
+        }
+
+        // --- TOOL MANAGEMENT ---
+        // ADDED: Central function to update all tool option panels
+        function updateToolOptionPanels() {
+            updateTextOptions();
+            updateRectOptions();
+        }
+
+        function setActiveTool(toolName) {
+            document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`${toolName}-tool`).classList.add('active');
+            currentTool = toolName;
+            clearAllSelections();
+            board.style.cursor = { text: 'text', arrow: 'crosshair', select: 'default', rect: 'crosshair' }[toolName]; // MODIFIED
+            updateToolOptionPanels(); // MODIFIED
+        }
+        // MODIFIED: Added rectTool to the list
+        [selectTool, arrowTool, textTool, rectTool].forEach(button => {
+            button.addEventListener('click', () => setActiveTool(button.id.replace('-tool', '')));
         });
-        document.addEventListener('mousemove', handleDrag);
-        document.addEventListener('mouseup', handleDragEnd, { once: true });
-        updateToolOptionPanels(); // MODIFIED
-    }
-    function handleDrag(e) { /* ... unchanged ... */ }
-    function handleDragEnd() { /* ... unchanged ... */ }
 
-    // --- BOARD INTERACTION (BACKGROUND) ---
-    board.addEventListener('mousedown', (e) => {
-        if (e.target !== board || e.button !== 0) return;
-        if (currentTool === 'arrow') {
-            isDrawingArrow = true;
-            const boardRect = board.getBoundingClientRect();
-            arrowPoints = [{ x: e.clientX - boardRect.left, y: e.clientY - boardRect.top }];
-            arrowPreview.style.display = 'block';
-            document.addEventListener('mousemove', handleArrowDraw);
-            document.addEventListener('mouseup', handleArrowEnd, { once: true });
-        } else if (currentTool === 'text') {
-            createTextElement({}, e);
-        } else if (currentTool === 'rect') { // ADDED: Handle rectangle drawing
-            handleRectDrawStart(e);
-        } else if (currentTool === 'select') {
-            handleSelectionBoxStart(e);
-        }
-    });
-    
-    function handleArrowDraw(e) { /* ... unchanged ... */ }
-    function handleArrowEnd(e) { /* ... unchanged ... */ }
-    
-    // ADDED: Logic for drawing a rectangle on the board
-    function handleRectDrawStart(e) {
-        const boardRect = board.getBoundingClientRect();
-        const startX = e.clientX - boardRect.left;
-        const startY = e.clientY - boardRect.top;
-        
-        // Use the selection box as a preview
-        selectionBox.style.background = 'rgba(220, 53, 69, 0.2)';
-        selectionBox.style.border = '1px dashed #dc3545';
-        selectionBox.style.display = 'block';
+        // --- TILE MANAGEMENT ---
+        function findNextSpawnPosition() { /* ... unchanged ... */ return { x: 0, y: 0 }; }
+        function createDraggableTile({ src, left, top }) { /* ... unchanged ... */ }
 
-        function onMouseMove(moveE) {
-            const currentX = moveE.clientX - boardRect.left;
-            const currentY = moveE.clientY - boardRect.top;
-            const left = Math.min(startX, currentX);
-            const top = Math.min(startY, currentY);
-            const width = Math.abs(currentX - startX);
-            const height = Math.abs(currentY - startY);
-            selectionBox.style.left = `${left}px`;
-            selectionBox.style.top = `${top}px`;
-            selectionBox.style.width = `${width}px`;
-            selectionBox.style.height = `${height}px`;
-        }
+        // --- ARROW MANAGEMENT ---
+        function pointsToPath(points) { /* ... unchanged ... */ return ''; }
+        function createArrow({ points }) { /* ... unchanged ... */ }
 
-        function onMouseUp(upE) {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-
-            // Reset and hide the preview box
-            selectionBox.style.display = 'none';
-            selectionBox.style.background = 'rgba(76, 175, 80, 0.1)';
-            selectionBox.style.border = '1px dashed #4CAF50';
-            
-            const endX = upE.clientX - boardRect.left;
-            const endY = upE.clientY - boardRect.top;
-            const width = Math.abs(endX - startX);
-            const height = Math.abs(endY - startY);
-
-            if (width > 5 && height > 5) {
-                createHideRect({
-                    left: Math.min(startX, endX) + 'px',
-                    top: Math.min(startY, endY) + 'px',
-                    width: width + 'px',
-                    height: height + 'px',
-                    color: rectColorInput.value
-                });
+        // --- TEXT MANAGEMENT ---
+        function createTextElement({ text, left, top, color, fontSize }, event) { /* ... unchanged ... */ }
+        function updateTextOptions() {
+            const selectedTextElements = [...selections].filter(el => el.classList.contains('text-element'));
+            const isTextToolActive = currentTool === 'text';
+            textOptionsPanel.style.display = (isTextToolActive || selectedTextElements.length > 0) ? 'block' : 'none';
+            if (selectedTextElements.length > 0) {
+                const lastSelectedText = selectedTextElements[selectedTextElements.length - 1];
+                textColorInput.value = rgbToHex(getComputedStyle(lastSelectedText).color);
+                fontSizeInput.value = parseInt(lastSelectedText.style.fontSize, 10) || 16;
             }
         }
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp, { once: true });
-    }
-
-    function handleSelectionBoxStart(e) {
-        let dragStartedOnBoard = false;
-        const boardRect = board.getBoundingClientRect();
-        selectionStart = { x: e.clientX - boardRect.left, y: e.clientY - boardRect.top };
-        const onMouseMove = (moveE) => {
-            const dx = Math.abs(moveE.clientX - e.clientX); const dy = Math.abs(moveE.clientY - e.clientY);
-            if (!dragStartedOnBoard && (dx > 5 || dy > 5)) {
-                dragStartedOnBoard = true; isSelecting = true;
-                clearAllSelections();
-                selectionBox.style.display = 'block';
-            }
-            if (!isSelecting) return;
-            const currentX = moveE.clientX - boardRect.left; const currentY = moveE.clientY - boardRect.top;
-            const left = Math.min(selectionStart.x, currentX); const top = Math.min(selectionStart.y, currentY);
-            const width = Math.abs(currentX - selectionStart.x); const height = Math.abs(currentY - selectionStart.y);
-            selectionBox.style.left = `${left}px`; selectionBox.style.top = `${top}px`;
-            selectionBox.style.width = `${width}px`; selectionBox.style.height = `${height}px`;
-            const selectionRect = { left, top, right: left + width, bottom: top + height };
-            // MODIFIED: Include .hide-rect in multi-selection
-            document.querySelectorAll('.tile, .text-element, .arrow, .hide-rect').forEach(el => {
-                const elRect = el.getBoundingClientRect();
-                const elBoardRect = { left: elRect.left - boardRect.left, top: elRect.top - boardRect.top, right: elRect.right - boardRect.left, bottom: elRect.bottom - boardRect.top };
-                if (elBoardRect.left < selectionRect.right && elBoardRect.right > selectionRect.left && elBoardRect.top < selectionRect.bottom && elBoardRect.bottom > selectionRect.top) {
-                    if (!selections.has(el)) { selections.add(el); el.classList.add('selected'); }
-                } else {
-                    selections.delete(el); el.classList.remove('selected');
+        function applyStyleToSelectedText() {
+            const color = textColorInput.value;
+            const size = fontSizeInput.value + 'px';
+            selections.forEach(el => {
+                if (el.classList.contains('text-element')) {
+                    el.style.color = color;
+                    el.style.fontSize = size;
                 }
             });
-        };
-        const onMouseUp = () => {
-            document.removeEventListener('mousemove', onMouseMove);
-            if (!dragStartedOnBoard) { clearAllSelections(); }
-            isSelecting = false;
-            selectionBox.style.display = 'none';
-            updateToolOptionPanels(); // MODIFIED
-        };
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp, { once: true });
-    }
+        }
+        textColorInput.addEventListener('input', applyStyleToSelectedText);
+        fontSizeInput.addEventListener('input', applyStyleToSelectedText);
 
-    // --- KEYBOARD SHORTCUTS ---
-    document.addEventListener('keydown', (e) => {
-        if (e.target.isContentEditable || e.target.tagName === 'INPUT') return;
-        if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelectedItems(); }
-        if (e.key === '1') setActiveTool('select');
-        else if (e.key === '2') setActiveTool('arrow');
-        else if (e.key === '3') setActiveTool('text');
-        else if (e.key === '4') setActiveTool('rect'); // ADDED: Shortcut for rect tool
-        else if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
-            clearAllSelections();
-            // MODIFIED: Include .hide-rect in select all
-            document.querySelectorAll('.tile, .text-element, .arrow, .hide-rect').forEach(el => {
-                selections.add(el);
-                el.classList.add('selected');
+        // --- ADDED: RECTANGLE MANAGEMENT ---
+        function createHideRect({ left, top, width, height, color }) {
+            const rect = document.createElement('div');
+            rect.className = 'hide-rect';
+            rect.style.left = left;
+            rect.style.top = top;
+            rect.style.width = width;
+            rect.style.height = height;
+            rect.style.backgroundColor = color || rectColorInput.value;
+
+            // Create and append resize handles
+            const directions = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+            directions.forEach(dir => {
+                const handle = document.createElement('div');
+                handle.className = `resize-handle ${dir}`;
+                handle.dataset.direction = dir;
+                handle.addEventListener('mousedown', initResize);
+                rect.appendChild(handle);
             });
+
+            board.appendChild(rect);
+            addInteractionListeners(rect);
+            return rect;
+        }
+
+        function initResize(e) {
+            e.preventDefault();
+            e.stopPropagation(); // Prevent the rect itself from being dragged
+
+            const handle = e.target;
+            const rect = handle.parentElement;
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startWidth = rect.offsetWidth;
+            const startHeight = rect.offsetHeight;
+            const startLeft = rect.offsetLeft;
+            const startTop = rect.offsetTop;
+
+            function doResize(moveE) {
+                const dx = moveE.clientX - startX;
+                const dy = moveE.clientY - startY;
+
+                let newLeft = startLeft, newTop = startTop, newWidth = startWidth, newHeight = startHeight;
+                const direction = handle.dataset.direction;
+
+                if (direction.includes('e')) newWidth = startWidth + dx;
+                if (direction.includes('w')) {
+                    newWidth = startWidth - dx;
+                    newLeft = startLeft + dx;
+                }
+                if (direction.includes('s')) newHeight = startHeight + dy;
+                if (direction.includes('n')) {
+                    newHeight = startHeight - dy;
+                    newTop = startTop + dy;
+                }
+
+                if (newWidth > 10) {
+                    rect.style.width = newWidth + 'px';
+                    rect.style.left = newLeft + 'px';
+                }
+                if (newHeight > 10) {
+                    rect.style.height = newHeight + 'px';
+                    rect.style.top = newTop + 'px';
+                }
+            }
+
+            function stopResize() {
+                document.removeEventListener('mousemove', doResize);
+                document.removeEventListener('mouseup', stopResize);
+            }
+
+            document.addEventListener('mousemove', doResize);
+            document.addEventListener('mouseup', stopResize, { once: true });
+        }
+
+        function updateRectOptions() {
+            const selectedRects = [...selections].filter(el => el.classList.contains('hide-rect'));
+            const isRectToolActive = currentTool === 'rect';
+            rectOptionsPanel.style.display = (isRectToolActive || selectedRects.length > 0) ? 'block' : 'none';
+
+            if (selectedRects.length > 0) {
+                const lastSelectedRect = selectedRects[selectedRects.length - 1];
+                rectColorInput.value = rgbToHex(lastSelectedRect.style.backgroundColor);
+            }
+        }
+
+        function applyColorToSelectedRects() {
+            const color = rectColorInput.value;
+            selections.forEach(el => {
+                if (el.classList.contains('hide-rect')) {
+                    el.style.backgroundColor = color;
+                }
+            });
+        }
+        rectColorInput.addEventListener('input', applyColorToSelectedRects);
+
+
+        // --- GENERIC INTERACTION HANDLING ---
+        function addInteractionListeners(element) {
+            element.addEventListener('mousedown', handleMouseDown);
+            element.addEventListener('click', handleClick);
+            element.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                if (!selections.has(element)) { clearAllSelections(); selections.add(element); element.classList.add('selected'); }
+                deleteSelectedItems();
+            });
+        }
+        function handleClick(e) {
+            e.stopPropagation();
+            if (currentTool !== 'select' || e.currentTarget.isContentEditable) return;
+            const element = e.currentTarget;
+            if (e.ctrlKey || e.metaKey) {
+                if (selections.has(element)) { selections.delete(element); element.classList.remove('selected'); }
+                else { selections.add(element); element.classList.add('selected'); }
+            } else {
+                if (!isDragging) { clearAllSelections(); selections.add(element); element.classList.add('selected'); }
+            }
             updateToolOptionPanels(); // MODIFIED
         }
-    });
-
-    // --- SAVE AND LOAD ---
-    const STORAGE_PREFIX = 'mahjong_state_';
-
-    // MODIFIED: getBoardState now includes rectangles
-    function getBoardState() {
-        const state = { tiles: [], arrows: [], texts: [], rects: [] };
-        document.querySelectorAll('.tile').forEach(t => state.tiles.push({ src: t.src, left: t.style.left, top: t.style.top }));
-        document.querySelectorAll('.arrow').forEach(a => state.arrows.push({ points: a.arrowData.points }));
-        document.querySelectorAll('.text-element').forEach(t => state.texts.push({
-            text: t.textContent, left: t.style.left, top: t.style.top,
-            color: t.style.color, fontSize: t.style.fontSize
-        }));
-        // ADDED: Save rectangle data
-        document.querySelectorAll('.hide-rect').forEach(r => state.rects.push({
-            left: r.style.left, top: r.style.top,
-            width: r.style.width, height: r.style.height,
-            color: r.style.backgroundColor
-        }));
-        return state;
-    }
-
-    function saveState() {
-        const name = saveNameInput.value.trim();
-        if (!name) { alert('Please enter a name for the state.'); return; }
-        const state = getBoardState();
-        localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(state));
-        saveNameInput.value = '';
-        populateLoadList(name);
-        alert(`State '${name}' saved!`);
-    }
-
-    function updateState() {
-        const name = loadStateSelect.value;
-        if (!name) { alert('Please select a state to update.'); return; }
-        const state = getBoardState();
-        localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(state));
-        alert(`State '${name}' updated!`);
-    }
-
-    // MODIFIED: loadState now loads rectangles
-    function loadState() {
-        const name = loadStateSelect.value;
-        if (!name) { alert('Please select a state to load.'); return; }
-        const stateJSON = localStorage.getItem(STORAGE_PREFIX + name);
-        if (!stateJSON) { alert('Error: Could not find saved state.'); return; }
-        const state = JSON.parse(stateJSON);
-        board.querySelectorAll('.tile, .arrow, .text-element, .hide-rect').forEach(el => el.remove());
-        clearAllSelections();
-        nextSpawnX = 50; nextSpawnY = 50;
-        if (state.tiles) state.tiles.forEach(t => createDraggableTile(t));
-        if (state.arrows) state.arrows.forEach(a => createArrow(a));
-        if (state.texts) state.texts.forEach(t => createTextElement(t));
-        if (state.rects) state.rects.forEach(r => createHideRect(r)); // ADDED: Load rectangles
-    }
-
-    function deleteState() { /* ... unchanged ... */ }
-    function populateLoadList(currentSelection) { /* ... unchanged ... */ }
-    
-    saveButton.addEventListener('click', saveState);
-    loadButton.addEventListener('click', loadState);
-    deleteStateButton.addEventListener('click', deleteState);
-    updateStateButton.addEventListener('click', updateState);
-
-    loadStateSelect.addEventListener('change', () => {
-        updateStateButton.style.display = loadStateSelect.value ? 'block' : 'none';
-    });
-
-    // --- OTHER BUTTONS ---
-    // MODIFIED: generate-hand-button is updated below
-    // MODIFIED: generate-tile-button is updated below
-    // MODIFIED: Clear board now also removes rectangles
-    document.getElementById('clear-board-button').addEventListener('click', () => {
-      clearAllSelections();
-      board.querySelectorAll('.tile, .arrow, .text-element, .hide-rect').forEach(el => el.remove());
-      resetTileCounts();
-      nextSpawnX = 50; nextSpawnY = 50;
-    });
-
-    // --- INITIALIZATION ---
-    // Unchanged functions (stubs for brevity in thought process, but included fully here)
-    findNextSpawnPosition = function() {
-        const boardRect = board.getBoundingClientRect();
-        const buffer = 5;
-        if (nextSpawnX + TILE_WIDTH > boardRect.width) {
-            nextSpawnX = 50;
-            nextSpawnY += TILE_HEIGHT + buffer;
+        function handleMouseDown(e) {
+            // ADDED: Don't drag if a resize handle was clicked
+            if (e.target.classList.contains('resize-handle')) return;
+            if (e.button !== 0 || currentTool !== 'select' || e.target.isContentEditable) return;
+            e.stopPropagation();
+            const element = e.currentTarget;
+            if (!selections.has(element) && !e.ctrlKey && !e.metaKey) {
+                clearAllSelections();
+                selections.add(element);
+                element.classList.add('selected');
+            }
+            isDragging = true;
+            dragOffsets.clear();
+            const boardRect = board.getBoundingClientRect();
+            selections.forEach(sel => {
+                if (sel.classList.contains('arrow')) {
+                    dragOffsets.set(sel, { type: 'arrow', initialPoints: JSON.parse(JSON.stringify(sel.arrowData.points)), offsetX: e.clientX, offsetY: e.clientY });
+                } else {
+                    const elemRect = sel.getBoundingClientRect();
+                    dragOffsets.set(sel, { type: 'element', offsetX: e.clientX - elemRect.left, offsetY: e.clientY - elemRect.top });
+                }
+            });
+            document.addEventListener('mousemove', handleDrag);
+            document.addEventListener('mouseup', handleDragEnd, { once: true });
+            updateToolOptionPanels(); // MODIFIED
         }
-        if (nextSpawnY + TILE_HEIGHT > boardRect.height) { nextSpawnX = 50; nextSpawnY = 50; }
-        const spawnPos = { x: nextSpawnX, y: nextSpawnY };
-        nextSpawnX += TILE_WIDTH;
-        return spawnPos;
-    }
-    tileImages.forEach(src => {
-        const img = document.createElement('img');
-        img.src = src;
-        img.draggable = false;
-        img.addEventListener('click', () => createDraggableTile({ src }));
-        tilePalette.appendChild(img);
-    });
-    createDraggableTile = function({ src, left, top }) {
-        const tile = document.createElement('img');
-        tile.src = src;
-        tile.className = 'tile';
-        tile.draggable = false;
-        if (left === undefined || top === undefined) {
-            const spawnPos = findNextSpawnPosition();
-            tile.style.left = snapToGrid(spawnPos.x) + 'px';
-            tile.style.top = snapToGrid(spawnPos.y) + 'px';
-        } else {
-            tile.style.left = left;
-            tile.style.top = top;
+        function handleDrag(e) { /* ... unchanged ... */ }
+        function handleDragEnd() { /* ... unchanged ... */ }
+
+        // --- BOARD INTERACTION (BACKGROUND) ---
+        board.addEventListener('mousedown', (e) => {
+            if (e.target !== board || e.button !== 0) return;
+            if (currentTool === 'arrow') {
+                isDrawingArrow = true;
+                const boardRect = board.getBoundingClientRect();
+                arrowPoints = [{ x: e.clientX - boardRect.left, y: e.clientY - boardRect.top }];
+                arrowPreview.style.display = 'block';
+                document.addEventListener('mousemove', handleArrowDraw);
+                document.addEventListener('mouseup', handleArrowEnd, { once: true });
+            } else if (currentTool === 'text') {
+                createTextElement({}, e);
+            } else if (currentTool === 'rect') { // ADDED: Handle rectangle drawing
+                handleRectDrawStart(e);
+            } else if (currentTool === 'select') {
+                handleSelectionBoxStart(e);
+            }
+        });
+
+        function handleArrowDraw(e) { /* ... unchanged ... */ }
+        function handleArrowEnd(e) { /* ... unchanged ... */ }
+
+        // ADDED: Logic for drawing a rectangle on the board
+        function handleRectDrawStart(e) {
+            const boardRect = board.getBoundingClientRect();
+            const startX = e.clientX - boardRect.left;
+            const startY = e.clientY - boardRect.top;
+
+            // Use the selection box as a preview
+            selectionBox.style.background = 'rgba(220, 53, 69, 0.2)';
+            selectionBox.style.border = '1px dashed #dc3545';
+            selectionBox.style.display = 'block';
+
+            function onMouseMove(moveE) {
+                const currentX = moveE.clientX - boardRect.left;
+                const currentY = moveE.clientY - boardRect.top;
+                const left = Math.min(startX, currentX);
+                const top = Math.min(startY, currentY);
+                const width = Math.abs(currentX - startX);
+                const height = Math.abs(currentY - startY);
+                selectionBox.style.left = `${left}px`;
+                selectionBox.style.top = `${top}px`;
+                selectionBox.style.width = `${width}px`;
+                selectionBox.style.height = `${height}px`;
+            }
+
+            function onMouseUp(upE) {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+
+                // Reset and hide the preview box
+                selectionBox.style.display = 'none';
+                selectionBox.style.background = 'rgba(76, 175, 80, 0.1)';
+                selectionBox.style.border = '1px dashed #4CAF50';
+
+                const endX = upE.clientX - boardRect.left;
+                const endY = upE.clientY - boardRect.top;
+                const width = Math.abs(endX - startX);
+                const height = Math.abs(endY - startY);
+
+                if (width > 5 && height > 5) {
+                    createHideRect({
+                        left: Math.min(startX, endX) + 'px',
+                        top: Math.min(startY, endY) + 'px',
+                        width: width + 'px',
+                        height: height + 'px',
+                        color: rectColorInput.value
+                    });
+                }
+            }
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp, { once: true });
         }
-        board.appendChild(tile);
-        addInteractionListeners(tile);
-        return tile;
-    }
-    pointsToPath = function(points) {
-        if (!points || points.length < 2) return '';
-        let path = `M ${points[0].x} ${points[0].y}`;
-        if (points.length === 2) {
-            path += ` L ${points[1].x} ${points[1].y}`;
+
+        function handleSelectionBoxStart(e) {
+            let dragStartedOnBoard = false;
+            const boardRect = board.getBoundingClientRect();
+            selectionStart = { x: e.clientX - boardRect.left, y: e.clientY - boardRect.top };
+            const onMouseMove = (moveE) => {
+                const dx = Math.abs(moveE.clientX - e.clientX); const dy = Math.abs(moveE.clientY - e.clientY);
+                if (!dragStartedOnBoard && (dx > 5 || dy > 5)) {
+                    dragStartedOnBoard = true; isSelecting = true;
+                    clearAllSelections();
+                    selectionBox.style.display = 'block';
+                }
+                if (!isSelecting) return;
+                const currentX = moveE.clientX - boardRect.left; const currentY = moveE.clientY - boardRect.top;
+                const left = Math.min(selectionStart.x, currentX); const top = Math.min(selectionStart.y, currentY);
+                const width = Math.abs(currentX - selectionStart.x); const height = Math.abs(currentY - selectionStart.y);
+                selectionBox.style.left = `${left}px`; selectionBox.style.top = `${top}px`;
+                selectionBox.style.width = `${width}px`; selectionBox.style.height = `${height}px`;
+                const selectionRect = { left, top, right: left + width, bottom: top + height };
+                // MODIFIED: Include .hide-rect in multi-selection
+                document.querySelectorAll('.tile, .text-element, .arrow, .hide-rect').forEach(el => {
+                    const elRect = el.getBoundingClientRect();
+                    const elBoardRect = { left: elRect.left - boardRect.left, top: elRect.top - boardRect.top, right: elRect.right - boardRect.left, bottom: elRect.bottom - boardRect.top };
+                    if (elBoardRect.left < selectionRect.right && elBoardRect.right > selectionRect.left && elBoardRect.top < selectionRect.bottom && elBoardRect.bottom > selectionRect.top) {
+                        if (!selections.has(el)) { selections.add(el); el.classList.add('selected'); }
+                    } else {
+                        selections.delete(el); el.classList.remove('selected');
+                    }
+                });
+            };
+            const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                if (!dragStartedOnBoard) { clearAllSelections(); }
+                isSelecting = false;
+                selectionBox.style.display = 'none';
+                updateToolOptionPanels(); // MODIFIED
+            };
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp, { once: true });
+        }
+
+        // --- KEYBOARD SHORTCUTS ---
+        document.addEventListener('keydown', (e) => {
+            if (e.target.isContentEditable || e.target.tagName === 'INPUT') return;
+            if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelectedItems(); }
+            if (e.key === '1') setActiveTool('select');
+            else if (e.key === '2') setActiveTool('arrow');
+            else if (e.key === '3') setActiveTool('text');
+            else if (e.key === '4') setActiveTool('rect'); // ADDED: Shortcut for rect tool
+            else if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                clearAllSelections();
+                // MODIFIED: Include .hide-rect in select all
+                document.querySelectorAll('.tile, .text-element, .arrow, .hide-rect').forEach(el => {
+                    selections.add(el);
+                    el.classList.add('selected');
+                });
+                updateToolOptionPanels(); // MODIFIED
+            }
+        });
+
+        // --- SAVE AND LOAD ---
+        const STORAGE_PREFIX = 'mahjong_state_';
+
+        // MODIFIED: getBoardState now includes rectangles
+        function getBoardState() {
+            const state = { tiles: [], arrows: [], texts: [], rects: [] };
+            document.querySelectorAll('.tile').forEach(t => state.tiles.push({ src: t.src, left: t.style.left, top: t.style.top }));
+            document.querySelectorAll('.arrow').forEach(a => state.arrows.push({ points: a.arrowData.points }));
+            document.querySelectorAll('.text-element').forEach(t => state.texts.push({
+                text: t.textContent, left: t.style.left, top: t.style.top,
+                color: t.style.color, fontSize: t.style.fontSize
+            }));
+            // ADDED: Save rectangle data
+            document.querySelectorAll('.hide-rect').forEach(r => state.rects.push({
+                left: r.style.left, top: r.style.top,
+                width: r.style.width, height: r.style.height,
+                color: r.style.backgroundColor
+            }));
+            return state;
+        }
+
+        function saveState() {
+            const name = saveNameInput.value.trim();
+            if (!name) { alert('Please enter a name for the state.'); return; }
+            const state = getBoardState();
+            localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(state));
+            saveNameInput.value = '';
+            populateLoadList(name);
+            alert(`State '${name}' saved!`);
+        }
+
+        function updateState() {
+            const name = loadStateSelect.value;
+            if (!name) { alert('Please select a state to update.'); return; }
+            const state = getBoardState();
+            localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(state));
+            alert(`State '${name}' updated!`);
+        }
+
+        // MODIFIED: loadState now loads rectangles
+        function loadState() {
+            const name = loadStateSelect.value;
+            if (!name) { alert('Please select a state to load.'); return; }
+            const stateJSON = localStorage.getItem(STORAGE_PREFIX + name);
+            if (!stateJSON) { alert('Error: Could not find saved state.'); return; }
+            const state = JSON.parse(stateJSON);
+            board.querySelectorAll('.tile, .arrow, .text-element, .hide-rect').forEach(el => el.remove());
+            clearAllSelections();
+            nextSpawnX = 50; nextSpawnY = 50;
+            if (state.tiles) state.tiles.forEach(t => createDraggableTile(t));
+            if (state.arrows) state.arrows.forEach(a => createArrow(a));
+            if (state.texts) state.texts.forEach(t => createTextElement(t));
+            if (state.rects) state.rects.forEach(r => createHideRect(r)); // ADDED: Load rectangles
+        }
+
+        function deleteState() { /* ... unchanged ... */ }
+        function populateLoadList(currentSelection) { /* ... unchanged ... */ }
+
+        saveButton.addEventListener('click', saveState);
+        loadButton.addEventListener('click', loadState);
+        deleteStateButton.addEventListener('click', deleteState);
+        updateStateButton.addEventListener('click', updateState);
+
+        loadStateSelect.addEventListener('change', () => {
+            updateStateButton.style.display = loadStateSelect.value ? 'block' : 'none';
+        });
+
+        // --- OTHER BUTTONS ---
+        // MODIFIED: generate-hand-button is updated below
+        // MODIFIED: generate-tile-button is updated below
+        // MODIFIED: Clear board now also removes rectangles
+        document.getElementById('clear-board-button').addEventListener('click', () => {
+            clearAllSelections();
+            board.querySelectorAll('.tile, .arrow, .text-element, .hide-rect').forEach(el => el.remove());
+            resetTileCounts();
+            nextSpawnX = 50; nextSpawnY = 50;
+        });
+
+        // --- INITIALIZATION ---
+        // Unchanged functions (stubs for brevity in thought process, but included fully here)
+        findNextSpawnPosition = function () {
+            const boardRect = board.getBoundingClientRect();
+            const buffer = 5;
+            if (nextSpawnX + TILE_WIDTH > boardRect.width) {
+                nextSpawnX = 50;
+                nextSpawnY += TILE_HEIGHT + buffer;
+            }
+            if (nextSpawnY + TILE_HEIGHT > boardRect.height) { nextSpawnX = 50; nextSpawnY = 50; }
+            const spawnPos = { x: nextSpawnX, y: nextSpawnY };
+            nextSpawnX += TILE_WIDTH;
+            return spawnPos;
+        }
+        tileImages.forEach(src => {
+            const img = document.createElement('img');
+            img.src = TILE_PATH_PREFIX + src; // MODIFIED: Use path prefix
+            img.draggable = false;
+            img.addEventListener('click', () => createDraggableTile({ src }));
+            tilePalette.appendChild(img);
+        });
+        createDraggableTile = function ({ src, left, top }) {
+            const tile = document.createElement('img');
+            tile.src = TILE_PATH_PREFIX + src; // MODIFIED: Use path prefix
+            tile.className = 'tile';
+            tile.draggable = false;
+            if (left === undefined || top === undefined) {
+                const spawnPos = findNextSpawnPosition();
+                tile.style.left = snapToGrid(spawnPos.x) + 'px';
+                tile.style.top = snapToGrid(spawnPos.y) + 'px';
+            } else {
+                tile.style.left = left;
+                tile.style.top = top;
+            }
+            board.appendChild(tile);
+            addInteractionListeners(tile);
+            return tile;
+        }
+        pointsToPath = function (points) {
+            if (!points || points.length < 2) return '';
+            let path = `M ${points[0].x} ${points[0].y}`;
+            if (points.length === 2) {
+                path += ` L ${points[1].x} ${points[1].y}`;
+                return path;
+            }
+            let i;
+            for (i = 1; i < points.length - 2; i++) {
+                const xc = (points[i].x + points[i + 1].x) / 2;
+                const yc = (points[i].y + points[i + 1].y) / 2;
+                path += ` Q ${points[i].x} ${points[i].y}, ${xc} ${yc}`;
+            }
+            path += ` Q ${points[i].x} ${points[i].y}, ${points[i + 1].x} ${points[i + 1].y}`;
             return path;
         }
-        let i;
-        for (i = 1; i < points.length - 2; i++) {
-            const xc = (points[i].x + points[i + 1].x) / 2;
-            const yc = (points[i].y + points[i + 1].y) / 2;
-            path += ` Q ${points[i].x} ${points[i].y}, ${xc} ${yc}`;
+        createArrow = function ({ points }) {
+            const svg = document.createElementNS(SVG_NS, 'svg');
+            svg.classList.add('arrow');
+            svg.style.position = 'absolute'; svg.style.left = 0; svg.style.top = 0;
+            svg.style.width = '100%'; svg.style.height = '100%';
+            svg.style.pointerEvents = 'none';
+            svg.arrowData = { points: JSON.parse(JSON.stringify(points)) };
+            const defs = document.createElementNS(SVG_NS, 'defs');
+            const marker = document.createElementNS(SVG_NS, 'marker');
+            const polygon = document.createElementNS(SVG_NS, 'polygon');
+            const pathData = pointsToPath(points);
+            const visiblePath = document.createElementNS(SVG_NS, 'path');
+            visiblePath.setAttribute('d', pathData); visiblePath.setAttribute('class', 'visible-path');
+            visiblePath.setAttribute('stroke', '#4CAF50'); visiblePath.setAttribute('stroke-width', '3');
+            visiblePath.setAttribute('fill', 'none'); visiblePath.setAttribute('stroke-linecap', 'round');
+            visiblePath.setAttribute('stroke-linejoin', 'round'); visiblePath.setAttribute('marker-end', 'url(#arrowhead)');
+            visiblePath.style.pointerEvents = 'none';
+            const hitboxPath = document.createElementNS(SVG_NS, 'path');
+            hitboxPath.setAttribute('d', pathData); hitboxPath.setAttribute('stroke', 'transparent');
+            hitboxPath.setAttribute('stroke-width', '15'); hitboxPath.setAttribute('fill', 'none');
+            hitboxPath.setAttribute('class', 'hitbox'); hitboxPath.setAttribute('stroke-linecap', 'round');
+            hitboxPath.setAttribute('stroke-linejoin', 'round');
+            const arrowId = 'arrowhead';
+            marker.setAttribute('id', arrowId); marker.setAttribute('markerWidth', '10'); marker.setAttribute('markerHeight', '7');
+            marker.setAttribute('refX', '9'); marker.setAttribute('refY', '3.5'); marker.setAttribute('orient', 'auto-start-reverse');
+            polygon.setAttribute('points', '0 0, 10 3.5, 0 7'); polygon.setAttribute('fill', '#4CAF50');
+            marker.appendChild(polygon); defs.appendChild(marker); svg.appendChild(defs); svg.appendChild(hitboxPath);
+            svg.appendChild(visiblePath); board.appendChild(svg); addInteractionListeners(svg); return svg;
         }
-        path += ` Q ${points[i].x} ${points[i].y}, ${points[i + 1].x} ${points[i + 1].y}`;
-        return path;
-    }
-    createArrow = function({ points }) {
-        const svg = document.createElementNS(SVG_NS, 'svg');
-        svg.classList.add('arrow');
-        svg.style.position = 'absolute'; svg.style.left = 0; svg.style.top = 0;
-        svg.style.width = '100%'; svg.style.height = '100%';
-        svg.style.pointerEvents = 'none';
-        svg.arrowData = { points: JSON.parse(JSON.stringify(points)) };
-        const defs = document.createElementNS(SVG_NS, 'defs');
-        const marker = document.createElementNS(SVG_NS, 'marker');
-        const polygon = document.createElementNS(SVG_NS, 'polygon');
-        const pathData = pointsToPath(points);
-        const visiblePath = document.createElementNS(SVG_NS, 'path');
-        visiblePath.setAttribute('d', pathData); visiblePath.setAttribute('class', 'visible-path');
-        visiblePath.setAttribute('stroke', '#4CAF50'); visiblePath.setAttribute('stroke-width', '3');
-        visiblePath.setAttribute('fill', 'none'); visiblePath.setAttribute('stroke-linecap', 'round');
-        visiblePath.setAttribute('stroke-linejoin', 'round'); visiblePath.setAttribute('marker-end', 'url(#arrowhead)');
-        visiblePath.style.pointerEvents = 'none';
-        const hitboxPath = document.createElementNS(SVG_NS, 'path');
-        hitboxPath.setAttribute('d', pathData); hitboxPath.setAttribute('stroke', 'transparent');
-        hitboxPath.setAttribute('stroke-width', '15'); hitboxPath.setAttribute('fill', 'none');
-        hitboxPath.setAttribute('class', 'hitbox'); hitboxPath.setAttribute('stroke-linecap', 'round');
-        hitboxPath.setAttribute('stroke-linejoin', 'round');
-        const arrowId = 'arrowhead';
-        marker.setAttribute('id', arrowId); marker.setAttribute('markerWidth', '10'); marker.setAttribute('markerHeight', '7');
-        marker.setAttribute('refX', '9'); marker.setAttribute('refY', '3.5'); marker.setAttribute('orient', 'auto-start-reverse');
-        polygon.setAttribute('points', '0 0, 10 3.5, 0 7'); polygon.setAttribute('fill', '#4CAF50');
-        marker.appendChild(polygon); defs.appendChild(marker); svg.appendChild(defs); svg.appendChild(hitboxPath);
-        svg.appendChild(visiblePath); board.appendChild(svg); addInteractionListeners(svg); return svg;
-    }
-    createTextElement = function({ text, left, top, color, fontSize }, event) {
-        const textEl = document.createElement('div');
-        textEl.className = 'text-element';
-        if (left === undefined || top === undefined) {
-            const boardRect = board.getBoundingClientRect();
-            textEl.style.left = snapToGrid(event.clientX - boardRect.left) + 'px';
-            textEl.style.top = snapToGrid(event.clientY - boardRect.top) + 'px';
-            textEl.textContent = ''; textEl.contentEditable = true; textEl.classList.add('editing');
-            textEl.style.color = textColorInput.value; textEl.style.fontSize = fontSizeInput.value + 'px';
-        } else {
-            textEl.style.left = left; textEl.style.top = top; textEl.textContent = text;
-            textEl.contentEditable = false; textEl.style.color = color || 'white';
-            textEl.style.fontSize = fontSize || '16px';
-        }
-        textEl.addEventListener('dblclick', (e) => {
-            if (currentTool !== 'select') return; e.stopPropagation();
-            textEl.contentEditable = true; textEl.classList.add('editing');
-            textEl.focus(); document.execCommand('selectAll', false, null);
-        });
-        textEl.addEventListener('blur', () => {
-            textEl.contentEditable = false; textEl.classList.remove('editing');
-            if (textEl.textContent.trim() === '' && left === undefined) {
-                if (board.contains(textEl)) board.removeChild(textEl);
-            }
-        });
-        textEl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); textEl.blur(); }
-            if (textEl.classList.contains('editing') && (e.key === 'Delete' || e.key === 'Backspace')) e.stopPropagation();
-        });
-        board.appendChild(textEl); addInteractionListeners(textEl);
-        if (left === undefined) setTimeout(() => textEl.focus(), 0); return textEl;
-    }
-    handleDrag = function(e) {
-        if (!isDragging) return;
-        const boardRect = board.getBoundingClientRect();
-        selections.forEach(sel => {
-            const offset = dragOffsets.get(sel);
-            if (offset.type === 'arrow') {
-                const dx = e.clientX - offset.offsetX; const dy = e.clientY - offset.offsetY;
-                const newPoints = offset.initialPoints.map(p => ({ x: p.x + dx, y: p.y + dy }));
-                sel.arrowData.points = newPoints;
-                sel.querySelectorAll('path').forEach(p => p.setAttribute('d', pointsToPath(newPoints)));
+        createTextElement = function ({ text, left, top, color, fontSize }, event) {
+            const textEl = document.createElement('div');
+            textEl.className = 'text-element';
+            if (left === undefined || top === undefined) {
+                const boardRect = board.getBoundingClientRect();
+                textEl.style.left = snapToGrid(event.clientX - boardRect.left) + 'px';
+                textEl.style.top = snapToGrid(event.clientY - boardRect.top) + 'px';
+                textEl.textContent = ''; textEl.contentEditable = true; textEl.classList.add('editing');
+                textEl.style.color = textColorInput.value; textEl.style.fontSize = fontSizeInput.value + 'px';
             } else {
-                sel.style.left = snapToGrid(e.clientX - boardRect.left - offset.offsetX) + 'px';
-                sel.style.top = snapToGrid(e.clientY - boardRect.top - offset.offsetY) + 'px';
+                textEl.style.left = left; textEl.style.top = top; textEl.textContent = text;
+                textEl.contentEditable = false; textEl.style.color = color || 'white';
+                textEl.style.fontSize = fontSize || '16px';
             }
+            textEl.addEventListener('dblclick', (e) => {
+                if (currentTool !== 'select') return; e.stopPropagation();
+                textEl.contentEditable = true; textEl.classList.add('editing');
+                textEl.focus(); document.execCommand('selectAll', false, null);
+            });
+            textEl.addEventListener('blur', () => {
+                textEl.contentEditable = false; textEl.classList.remove('editing');
+                if (textEl.textContent.trim() === '' && left === undefined) {
+                    if (board.contains(textEl)) board.removeChild(textEl);
+                }
+            });
+            textEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); textEl.blur(); }
+                if (textEl.classList.contains('editing') && (e.key === 'Delete' || e.key === 'Backspace')) e.stopPropagation();
+            });
+            board.appendChild(textEl); addInteractionListeners(textEl);
+            if (left === undefined) setTimeout(() => textEl.focus(), 0); return textEl;
+        }
+        handleDrag = function (e) {
+            if (!isDragging) return;
+            const boardRect = board.getBoundingClientRect();
+            selections.forEach(sel => {
+                const offset = dragOffsets.get(sel);
+                if (offset.type === 'arrow') {
+                    const dx = e.clientX - offset.offsetX; const dy = e.clientY - offset.offsetY;
+                    const newPoints = offset.initialPoints.map(p => ({ x: p.x + dx, y: p.y + dy }));
+                    sel.arrowData.points = newPoints;
+                    sel.querySelectorAll('path').forEach(p => p.setAttribute('d', pointsToPath(newPoints)));
+                } else {
+                    sel.style.left = snapToGrid(e.clientX - boardRect.left - offset.offsetX) + 'px';
+                    sel.style.top = snapToGrid(e.clientY - boardRect.top - offset.offsetY) + 'px';
+                }
+            });
+        }
+        handleDragEnd = function () {
+            document.removeEventListener('mousemove', handleDrag);
+            setTimeout(() => { isDragging = false; }, 0);
+            dragOffsets.clear();
+        }
+        handleArrowDraw = function (e) {
+            if (!isDrawingArrow) return;
+            const boardRect = board.getBoundingClientRect();
+            arrowPoints.push({ x: e.clientX - boardRect.left, y: e.clientY - boardRect.top });
+            arrowPreviewPath.setAttribute('d', pointsToPath(arrowPoints));
+        }
+        handleArrowEnd = function (e) {
+            document.removeEventListener('mousemove', handleArrowDraw);
+            isDrawingArrow = false;
+            const boardRect = board.getBoundingClientRect();
+            const x = e.clientX - boardRect.left; const y = e.clientY - boardRect.top;
+            if (!arrowPoints.length || arrowPoints[arrowPoints.length - 1].x !== x || arrowPoints[arrowPoints.length - 1].y !== y) {
+                arrowPoints.push({ x, y });
+            }
+            arrowPreview.style.display = 'none'; arrowPreviewPath.setAttribute('d', '');
+            if (arrowPoints.length >= 2) {
+                const points = [...arrowPoints];
+                createArrow({ points: e.shiftKey ? [points[0], points[points.length - 1]] : points });
+            }
+            arrowPoints = [];
+        }
+        deleteState = function () {
+            const name = loadStateSelect.value;
+            if (!name) { alert('Please select a state to delete.'); return; }
+            if (confirm(`Are you sure you want to delete the state '${name}'?`)) {
+                localStorage.removeItem(STORAGE_PREFIX + name);
+                populateLoadList();
+            }
+        }
+        populateLoadList = function (currentSelection) {
+            const savedStates = Object.keys(localStorage).filter(key => key.startsWith(STORAGE_PREFIX)).map(key => key.replace(STORAGE_PREFIX, ''));
+            loadStateSelect.innerHTML = '<option value="">-- Select a state --</option>';
+            savedStates.sort().forEach(name => {
+                const option = document.createElement('option');
+                option.value = name; option.textContent = name;
+                loadStateSelect.appendChild(option);
+            });
+            if (currentSelection) { loadStateSelect.value = currentSelection; }
+            loadStateSelect.dispatchEvent(new Event('change'));
+        }
+        // MODIFIED: Generate Hand button now respects tile limits
+        document.getElementById('generate-hand-button').addEventListener('click', () => {
+            clearAllSelections(); board.querySelectorAll('.tile').forEach(t => t.remove());
+            nextSpawnX = 50; nextSpawnY = 50; resetTileCounts();
+            const hand = [];
+            let attempts = 0; // Failsafe to prevent infinite loops
+            while (hand.length < 14 && attempts < 1000) {
+                const idx = Math.floor(Math.random() * drawableTiles.length);
+                const tile = drawableTiles[idx];
+                if (tileCounts[tile] < getTileLimit(tile)) {
+                    tileCounts[tile]++;
+                    hand.push(tile);
+                }
+                attempts++;
+            }
+            hand.sort((a, b) => tileImages.indexOf(a) - tileImages.indexOf(b)).forEach(src => createDraggableTile({ src }));
         });
-    }
-    handleDragEnd = function() {
-        document.removeEventListener('mousemove', handleDrag);
-        setTimeout(() => { isDragging = false; }, 0);
-        dragOffsets.clear();
-    }
-    handleArrowDraw = function(e) {
-        if (!isDrawingArrow) return;
-        const boardRect = board.getBoundingClientRect();
-        arrowPoints.push({ x: e.clientX - boardRect.left, y: e.clientY - boardRect.top });
-        arrowPreviewPath.setAttribute('d', pointsToPath(arrowPoints));
-    }
-    handleArrowEnd = function(e) {
-        document.removeEventListener('mousemove', handleArrowDraw);
-        isDrawingArrow = false;
-        const boardRect = board.getBoundingClientRect();
-        const x = e.clientX - boardRect.left; const y = e.clientY - boardRect.top;
-        if (!arrowPoints.length || arrowPoints[arrowPoints.length - 1].x !== x || arrowPoints[arrowPoints.length - 1].y !== y) {
-            arrowPoints.push({ x, y });
-        }
-        arrowPreview.style.display = 'none'; arrowPreviewPath.setAttribute('d', '');
-        if (arrowPoints.length >= 2) {
-            const points = [...arrowPoints];
-            createArrow({ points: e.shiftKey ? [points[0], points[points.length-1]] : points });
-        }
-        arrowPoints = [];
-    }
-    deleteState = function() {
-        const name = loadStateSelect.value;
-        if (!name) { alert('Please select a state to delete.'); return; }
-        if (confirm(`Are you sure you want to delete the state '${name}'?`)) {
-            localStorage.removeItem(STORAGE_PREFIX + name);
-            populateLoadList();
-        }
-    }
-    populateLoadList = function(currentSelection) {
-        const savedStates = Object.keys(localStorage).filter(key => key.startsWith(STORAGE_PREFIX)).map(key => key.replace(STORAGE_PREFIX, ''));
-        loadStateSelect.innerHTML = '<option value="">-- Select a state --</option>';
-        savedStates.sort().forEach(name => {
-            const option = document.createElement('option');
-            option.value = name; option.textContent = name;
-            loadStateSelect.appendChild(option);
+        // MODIFIED: Generate Tile button now respects tile limits
+        document.getElementById('generate-tile-button').addEventListener('click', () => {
+            recalculateTileCounts();
+            const eligibleTiles = drawableTiles.filter(tile => tileCounts[tile] < getTileLimit(tile));
+            if (eligibleTiles.length === 0) {
+                alert("All available tiles have been drawn according to their limits.");
+                return;
+            }
+            const tile = eligibleTiles[Math.floor(Math.random() * eligibleTiles.length)];
+            tileCounts[tile]++;
+            createDraggableTile({ src: tile });
         });
-        if (currentSelection) { loadStateSelect.value = currentSelection; }
-        loadStateSelect.dispatchEvent(new Event('change'));
-    }
-    // MODIFIED: Generate Hand button now respects tile limits
-    document.getElementById('generate-hand-button').addEventListener('click', () => {
-      clearAllSelections(); board.querySelectorAll('.tile').forEach(t => t.remove());
-      nextSpawnX = 50; nextSpawnY = 50; resetTileCounts();
-      const hand = [];
-      let attempts = 0; // Failsafe to prevent infinite loops
-      while (hand.length < 14 && attempts < 1000) {
-        const idx = Math.floor(Math.random() * drawableTiles.length);
-        const tile = drawableTiles[idx];
-        if (tileCounts[tile] < getTileLimit(tile)) { 
-            tileCounts[tile]++; 
-            hand.push(tile); 
-        }
-        attempts++;
-      }
-      hand.sort((a, b) => tileImages.indexOf(a) - tileImages.indexOf(b)).forEach(src => createDraggableTile({ src }));
-    });
-    // MODIFIED: Generate Tile button now respects tile limits
-    document.getElementById('generate-tile-button').addEventListener('click', () => {
-      recalculateTileCounts();
-      const eligibleTiles = drawableTiles.filter(tile => tileCounts[tile] < getTileLimit(tile));
-      if (eligibleTiles.length === 0) { 
-          alert("All available tiles have been drawn according to their limits."); 
-          return; 
-      }
-      const tile = eligibleTiles[Math.floor(Math.random() * eligibleTiles.length)];
-      tileCounts[tile]++; 
-      createDraggableTile({ src: tile });
-    });
-    
-    populateLoadList();
-    window.addEventListener('contextmenu', e => e.preventDefault(), true);
-  </script>
+
+        populateLoadList();
+        window.addEventListener('contextmenu', e => e.preventDefault(), true);
+    </script>
 </body>
 </html>
