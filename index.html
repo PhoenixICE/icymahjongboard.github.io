@@ -369,6 +369,7 @@
     const TILE_WIDTH = 80;
     const TILE_HEIGHT = 129;
     const SVG_NS = 'http://www.w3.org/2000/svg';
+    const TILE_PATH_PREFIX = 'docs/assets/';
 
     const TILE_LIMITS = {
       'tile_05.png': 1, 'tile_15.png': 1, 'tile_25.png': 1,
@@ -781,7 +782,8 @@
     }
     tileImages.forEach(src => {
         const img = document.createElement('img');
-        img.src = src; img.draggable = false;
+        img.src = TILE_PATH_PREFIX + src;
+        img.draggable = false;
         img.addEventListener('click', () => createDraggableTile({ src }));
         tilePalette.appendChild(img);
     });
@@ -792,7 +794,7 @@
         container.dataset.rotation = rotation;
 
         const img = document.createElement('img');
-        img.src = src;
+        img.src = TILE_PATH_PREFIX + src;
         img.draggable = false;
         container.appendChild(img);
 
@@ -967,5 +969,4 @@
     window.addEventListener('contextmenu', e => e.preventDefault(), true);
   </script>
 </body>
-
 </html>
