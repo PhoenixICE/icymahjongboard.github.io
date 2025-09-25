@@ -351,7 +351,7 @@
     const deleteStateButton = document.getElementById('delete-state-button');
     const updateStateButton = document.getElementById('update-state-button');
 
-    const tileImages = Array.from({ length: 38 }, (_, i) => `tile_${String(i).padStart(2, '0')}.png`);
+    const tileImages = Array.from({ length: 38 }, (_, i) => `docs/assets/tile_${String(i).padStart(2, '0')}.png`);
     const drawableTiles = tileImages.slice(0, 37);
     let tileCounts = {};
     tileImages.forEach(tile => tileCounts[tile] = 0);
@@ -967,4 +967,5 @@
     window.addEventListener('contextmenu', e => e.preventDefault(), true);
   </script>
 </body>
+
 </html>
